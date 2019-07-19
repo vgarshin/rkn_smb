@@ -78,7 +78,7 @@ def send_mail(dest_email, email_text):
     error = []
     try:
         email = 'app.notifications@yandex.ru'
-        password = 'AppNotify2019'
+        password = 'Notify2019'
         subject = 'Data load notification'
         message = 'From: {}\nTo: {}\nSubject: {}\n\n{}'.format(email, dest_email, subject, email_text)
         server = smtp.SMTP_SSL('smtp.yandex.com')
