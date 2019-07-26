@@ -13,7 +13,6 @@ CONT_NAME="parcesites_rkn_iter"
 sudo mkdir "../$CACHE_DIR_XML"
 sudo mkdir "../$CACHE_DIR"
 
-#python rkn_scrap_smb.py _data 20190718 cache_rkn_scraping_smb vgarshin@yandex.ru 2019-02 cache_rkn_scraping_smb_xml
 sudo docker run -i --name $CONT_NAME $VOLUMES extradata python -u rkn/rkn_scrap_smb_iter.py $DATA_DIR $PROC_DATE $CACHE_DIR $EMAIL $CACHE_DIR_XML
 sudo docker rm -f $CONT_NAME
 
