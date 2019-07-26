@@ -7,6 +7,7 @@ import gc
 import socket
 import requests
 import zipfile
+import ssl
 import pandas as pd
 import smtplib as smtp
 import xml.etree.ElementTree as ET
@@ -20,7 +21,7 @@ USER_AGENT = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, lik
 URL_ZIP = 'http://rkn.gov.ru/opendata/7705846236-OperatorsPD/data-20190712T0000-structure-20180129T0000.zip'
 MIN_TIME_SLEEP = 1
 MAX_TIME_SLEEP = 5
-MAX_COUNTS = 5
+MAX_COUNTS = 3
 TIMEOUT = 10
 
 def get_dataframe(directory):
@@ -35,12 +36,15 @@ def get_dataframe(directory):
     df = df.reset_index()
     del df['index']
     return df
-def load_unpack_xml_file(url, path):
+def load_unpack_xml_file(url, path, timeout):
     print('loading zip...')
     flag = False
     errors = {}
     try:
-        response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+        response = requests.get(url, 
+        			headers={'User-Agent': USER_AGENT}, 
+        			#verify=False, 
+        			timeout=timeout)
         print('response: ', response)
         name_zip = '{}{}'.format(path, 'temp.zip')
         with open(name_zip, 'wb') as file:
@@ -58,21 +62,22 @@ def get_html(url_page, timeout):
     while counts < MAX_COUNTS:
         try:
             request = Request(url_page)
+            context = ssl._create_unverified_context()
             request.add_header('User-Agent', USER_AGENT)
-            html = urlopen(request, timeout=timeout)
+            html = urlopen(request, context=context, timeout=timeout)
             break
         except URLError as e:
             counts += 1
             print('URLError | ', url_page, ' | ', e, ' | counts: ', counts)
-            sleep(randint(MIN_TIME_SLEEP, MAX_TIME_SLEEP))
+            sleep(randint(MIN_TIME_SLEEP, counts * MAX_TIME_SLEEP))
         except HTTPError as e:
             counts += 1
             print('HTTPError | ', url_page, ' | ', e, ' | counts: ', counts)
-            sleep(randint(MIN_TIME_SLEEP, MAX_TIME_SLEEP))
+            sleep(randint(MIN_TIME_SLEEP, counts * MAX_TIME_SLEEP))
         except socket.timeout as e:
             counts += 1
             print('socket timeout | ', url_page, ' | ', e, ' | counts: ', counts)
-            sleep(randint(MIN_TIME_SLEEP, MAX_TIME_SLEEP))
+            sleep(randint(MIN_TIME_SLEEP, counts * MAX_TIME_SLEEP))
     return html
 def send_mail(dest_email, email_text):
     error = []
@@ -109,7 +114,7 @@ def get_data_pd_operator_num(url_main, pd_operator_num):
 def main():
     #---base input parameters---
     print('url zip file: ', URL_ZIP)
-    url_main = 'http://pd.rkn.gov.ru/operators-registry/operators-list/?id='
+    url_main = 'https://pd.rkn.gov.ru/operators-registry/operators-list/?id='
     print('url: ', url_main)
     path = '{}/'.format(sys.argv[1]) 
     print('got path to save data: ', path)
@@ -123,10 +128,13 @@ def main():
     print('got directory for zip, xml cache: ', cache_path_xml)
     #---load zip file, unpack to xml, parce xml tree---
     flag = False
+    count_trial = 0
     while not flag:
-        errors, flag = load_unpack_xml_file(URL_ZIP, cache_path_xml)
+        print('zip load, trial: ', count_trial)
+        errors, flag = load_unpack_xml_file(URL_ZIP, cache_path_xml, TIMEOUT)
         print('errors: ', errors, ' | flag: ', flag)
-        sleep(randint(MIN_TIME_SLEEP, MAX_TIME_SLEEP))
+        count_trial += 1
+        sleep(randint(MIN_TIME_SLEEP, count_trial * MAX_TIME_SLEEP))
     xml_files =  [x for x in os.listdir(cache_path_xml) if '.xml' in x]
     print('xml files loaded: ', xml_files)
     #---main part---
@@ -167,7 +175,7 @@ def main():
 	                            pass
 	                    except BaseException as e:
 	                        print('BaseException iter cycle | ', e)
-	                        print('error dictionary: ', dict_temp)
+	                        #print('error dictionary: ', dict_temp)
 	                        count_errors += 1
 	                        pass
 	                    dict_temp = {}
